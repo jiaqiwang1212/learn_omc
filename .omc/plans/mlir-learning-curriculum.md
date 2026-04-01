@@ -81,7 +81,7 @@ PyTorch function → torch-mlir → MLIR dialects (torch → linalg → affine/v
 ## Acceptance Criteria
 
 - [ ] **AC1** — Given *unseen* torch-mlir output, can identify all ops, their dialect namespaces, SSA values, and function signature types within 5 minutes, without documentation
-- [ ] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
+- [x] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
 - [ ] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
 - [ ] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
 - [ ] **AC5** — Given a *novel op not covered in the curriculum* (e.g., `torch.aten.relu`), can predict the lowering path and write a correct `mlir-opt` pass sequence for it, without documentation
@@ -207,10 +207,23 @@ uv run python scripts/verify_phase0.py
 
 ---
 
-### Phase 2: First Pass — Write a Transformation
-**Duration:** 3–4 days
+### Phase 2: First Pass — Write a Transformation ✅ COMPLETED
+**Duration:** 3–4 days (completed 2026-04-01)
 **Goal:** Write a working MLIR C++ pass
-**Unlocks:** AC2
+**Unlocks:** AC2 ✅
+
+**Status:** All 3 exercises implemented, compiled, and committed (commit `dcd94b8`).
+- `passes/phase2/ex1_noop_pass.cpp` — walks all ops in `func.func`, prints names via `func.walk()`
+- `passes/phase2/ex2_counter_pass.cpp` — typed walk `func.walk([&](linalg::MatmulOp))` counts matmuls
+- `passes/phase2/ex3_rewrite_pass.cpp` — `OpRewritePattern<linalg::MatmulOp>` inserts `func.call @matmul_hook` before each matmul; greedy driver + idempotency guard
+- All three compiled as shared libraries under `build/passes/phase2/lib*.so`
+- AC2 verifier: `scripts/verify_phase2.py`
+
+**Key implementation details learned:**
+- `applyPatternsGreedily` (not deprecated `applyPatternsAndFoldGreedily`)
+- Idempotency guard via `getPrevNode()` check to prevent re-firing
+- Module-level `@matmul_hook` declaration injected by the pass itself so the verifier accepts the `func.call`
+- macOS plugin link flag: `-undefined dynamic_lookup` (in CMakeLists.txt)
 
 **Prerequisite concepts:**
 1. **Pass Manager** — pipeline of passes applied to IR; `mlir::PassManager` in C++; analogous to a `torch.fx` pass pipeline
@@ -519,6 +532,7 @@ TableGen is a DSL embedded in the LLVM/MLIR build system for declaring ops, pass
 ## Changelog
 - v1.0 (2026-04-01): Initial draft from deep-interview spec. Planner pass.
 - v1.2 (2026-04-01): Phase 0 rewritten to reflect actual source-build arrangement: git submodule for torch-mlir, uv Python env, `scripts/build.sh`, workspace layout documented.
+- v1.3 (2026-04-01): Phase 2 marked complete. AC2 verified. Implementation details recorded.
 - v1.1 (2026-04-01): Incorporated Architect + Critic feedback. 7 required changes applied:
   1. AC1 and AC5 rewritten to be objectively testable (no more "without confusion")
   2. SSA def-use chain tracing exercise added to Phase 1
