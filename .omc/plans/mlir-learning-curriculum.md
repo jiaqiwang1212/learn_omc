@@ -80,7 +80,7 @@ PyTorch function → torch-mlir → MLIR dialects (torch → linalg → affine/v
 
 ## Acceptance Criteria
 
-- [ ] **AC1** — Given *unseen* torch-mlir output, can identify all ops, their dialect namespaces, SSA values, and function signature types within 5 minutes, without documentation
+- [x] **AC1** — Given *unseen* torch-mlir output, can identify all ops, their dialect namespaces, SSA values, and function signature types within 5 minutes, without documentation
 - [x] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
 - [x] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
 - [x] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
