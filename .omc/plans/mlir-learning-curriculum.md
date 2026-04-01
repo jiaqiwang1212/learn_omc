@@ -84,7 +84,7 @@ PyTorch function → torch-mlir → MLIR dialects (torch → linalg → affine/v
 - [x] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
 - [x] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
 - [x] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
-- [ ] **AC5** — Given a *novel op not covered in the curriculum* (e.g., `torch.aten.relu`), can predict the lowering path and write a correct `mlir-opt` pass sequence for it, without documentation
+- [x] **AC5** — Given a *novel op not covered in the curriculum* (e.g., `torch.aten.relu`), can predict the lowering path and write a correct `mlir-opt` pass sequence for it, without documentation
 
 ---
 
@@ -496,6 +496,71 @@ mlir-opt input.mlir [passes...] | \
 
 ---
 
+### Phase 5: Custom Dialect — Define Your Own Ops
+**Duration:** 3–4 days
+**Goal:** Define a custom MLIR dialect in pure C++ (no TableGen), write a lowering pass, and wire it into the existing Phase 3/4 pipeline
+**Unlocks:** AC5
+
+**Why this phase exists:**
+After Phase 4, you can lower *existing* torch-mlir ops to LLVM IR. But when you encounter a *novel op* (AC5), you need to understand what lowering to linalg looks like from the inside. This phase builds that understanding by making you the dialect author.
+
+**What you will build:**
+- `myml` dialect with two ops: `myml.relu` (elementwise max(x,0)) and `myml.add` (elementwise add)
+- A conversion pass that lowers both ops to `linalg.generic`
+- An end-to-end pipeline: hand-written `myml` IR → LLVM IR via both plugins + Phase 3 chain
+
+**Key concepts introduced:**
+
+| Concept | What it is | ML analogy |
+|---------|-----------|------------|
+| Dialect registration | Maps "myml.relu" strings → C++ class at parse time | Registering a custom `torch.autograd.Function` — name only resolves after registration |
+| Op definition (no TableGen) | `mlir::Op<>` CRTP with traits (`OneOperand`, `OneResult`, `SameOperandsAndResultType`) | Like defining `__call__` on a `torch.nn.Module` — the class structure enforces the interface |
+| Conversion pass | `OpRewritePattern` matching custom ops, replacing with `linalg.generic` | `torch.fx` graph rewriting — match high-level op, replace with lower-level ops |
+| `linalg.generic` anatomy | `indexing_maps` + `iterator_types` + `ins`/`outs` + body block | A fused einsum with explicit loop structure |
+| `tensor.empty` | Allocates an output tensor for linalg to write into | `torch.zeros_like(input)` — creates the output buffer before the computation |
+
+**ML analogy for the whole phase:**
+You are implementing the `TorchToLinalg` conversion pass, but for your own dialect instead of torch-mlir's. This is exactly what `third_party/torch-mlir/lib/Conversion/TorchToLinalg/` does — it matches `torch.aten.*` ops and replaces them with `linalg.generic`.
+
+**Exercises:**
+
+1. **`ex1_define_dialect.cpp`** — Register the `myml` dialect as an mlir-opt plugin
+   - Defines `ReluOp` and `AddOp` in pure C++ (see `passes/phase5/MyMLDialect.h`)
+   - Pass: `--ex1-load-myml` (no-op; triggers dialect registration via `getDependentDialects`)
+   - After loading: `mlir-opt` can parse and print `myml.*` ops
+
+2. **`ex2_lower_to_linalg.cpp`** — Lower `myml` ops to `linalg.generic`
+   - `LowerReluToLinalg`: matches `myml.relu`, builds `linalg.generic` with `arith.maximumf` body
+   - `LowerAddToLinalg`: matches `myml.add`, builds `linalg.generic` with `arith.addf` body
+   - Pass: `--ex2-lower-myml-to-linalg`
+
+3. **`ex3_end_to_end.sh`** — Full pipeline: `test_input.mlir` (myml ops) → LLVM IR
+   ```bash
+   mlir-opt \
+     --load-pass-plugin=libEx1DefineDialect.so \
+     --load-pass-plugin=libEx2LowerToLinalg.so \
+     --ex1-load-myml \
+     --ex2-lower-myml-to-linalg \
+     [Phase 3 lowering chain] \
+     test_input.mlir | mlir-translate --mlir-to-llvmir
+   ```
+
+**Why pass ordering matters here (new insight):**
+`--ex1-load-myml` must come *before* `--ex2-lower-myml-to-linalg`. The dialect must be registered before any pass can match `myml.*` ops. This is the same reason torch-mlir registers all dialects before running the conversion pipeline.
+
+**Milestone check (AC5):** Given `torch.aten.sigmoid` (not covered in the curriculum), predict:
+- Which existing pass handles it (or doesn't)
+- What `linalg.generic` body it would lower to (elementwise `1/(1+exp(-x))`)
+- Write the lowering pattern for it
+
+**Resources:**
+- `passes/phase5/MyMLDialect.h` — full custom dialect source
+- `torch-mlir/lib/Conversion/TorchToLinalg/` — real-world example of the same pattern
+- MLIR Conversion framework: https://mlir.llvm.org/docs/DialectConversion/
+- `linalg.generic` semantics: https://mlir.llvm.org/docs/Dialects/Linalg/
+
+---
+
 ## Risks and Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
@@ -545,7 +610,7 @@ Option C keeps motivation high (each phase has a runnable output), minimizes sco
 - If the learner later wants to build a custom frontend or target GPU, they will need Phase 5+ work not covered here
 
 ### Follow-ups
-- Phase 5 (future): Add a custom MLIR dialect and lower it into the existing pipeline
+- Phase 5 (in progress): Custom `myml` dialect + lowering pass to linalg.generic (see Phase 5 section above)
 - Phase 6 (future): Target GPU via `convert-linalg-to-gpu` / SPIR-V lowering
 - Phase 7 (future): Contribute a pass or bugfix to upstream torch-mlir
 

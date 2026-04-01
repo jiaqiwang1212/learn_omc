@@ -25,3 +25,4 @@ add_definitions(${MLIR_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(phase2)
+add_subdirectory(phase5)

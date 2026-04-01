@@ -20,7 +20,7 @@ cmake -GNinja \
   "$PASSES_SRC"
 
 echo "==> Building pass plugins..."
-ninja -j$(sysctl -n hw.logicalcpu) Ex1NoopPass Ex2CounterPass Ex3RewritePass
+ninja -j$(sysctl -n hw.logicalcpu) Ex1NoopPass Ex2CounterPass Ex3RewritePass Ex1DefineDialect Ex2LowerToLinalg
 
 echo ""
 echo "==> Built plugins:"
