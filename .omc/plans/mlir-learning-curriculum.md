@@ -83,7 +83,7 @@ PyTorch function → torch-mlir → MLIR dialects (torch → linalg → affine/v
 - [ ] **AC1** — Given *unseen* torch-mlir output, can identify all ops, their dialect namespaces, SSA values, and function signature types within 5 minutes, without documentation
 - [x] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
 - [x] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
-- [ ] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
+- [x] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
 - [ ] **AC5** — Given a *novel op not covered in the curriculum* (e.g., `torch.aten.relu`), can predict the lowering path and write a correct `mlir-opt` pass sequence for it, without documentation
 
 ---
@@ -357,10 +357,18 @@ When you convert multiple dialects to LLVM dialect (e.g., `convert-arith-to-llvm
 
 ---
 
-### Phase 3.5: Break the Pipeline — Diagnostic Reasoning
-**Duration:** 1 day
+### Phase 3.5: Break the Pipeline — Diagnostic Reasoning ✅ COMPLETED
+**Duration:** 1 day (completed 2026-04-01)
 **Goal:** Build genuine understanding of pass ordering invariants by deliberately breaking the pipeline
 **Purpose:** Prevents cargo-culting the shell script without understanding why it works
+
+**Status:** All 4 break exercises implemented and verified.
+- `scripts/phase3/ex4_break_pipeline.sh` — 4 deliberately broken pipeline variants with diagnostic questions
+- `scripts/verify_phase3_5.py` — verifier that runs each break and confirms expected error patterns
+- Break 1: removing `--reconcile-unrealized-casts` → mlir-translate fails with `unrealized_conversion_cast`
+- Break 2: wrong pass order → modern MLIR silently skips unconverted ops (version-dependent behavior documented)
+- Break 3: removing `--convert-func-to-llvm` → mlir-translate fails on `func.func` ops
+- Break 4 (bonus): relu lowers OK through the same pipeline (linalg.generic handled by same passes)
 
 > **Why this phase exists:** After Phase 3, you can copy the shell script and it runs. That is necessary but not sufficient. If any pass is removed, reordered, or if a new op is added to your pipeline, you must be able to diagnose what fails and why. This phase builds that diagnostic muscle.
 
@@ -374,10 +382,19 @@ When you convert multiple dialects to LLVM dialect (e.g., `convert-arith-to-llvm
 
 ---
 
-### Phase 4: End-to-End Pipeline — Run on CPU
-**Duration:** 5–7 days
+### Phase 4: End-to-End Pipeline — Run on CPU ✅ COMPLETED
+**Duration:** 5–7 days (completed 2026-04-01)
 **Goal:** PyTorch function → CPU executable; output matches PyTorch reference
-**Unlocks:** AC4 (full milestone)
+**Unlocks:** AC4 ✅
+
+**Status:** All exercises implemented and AC4 verified.
+- `scripts/phase4/ex1_export_matmul.py` — exports 4x4 matmul at LINALG_ON_TENSORS → `build/phase4/matmul.mlir`
+- `scripts/phase4/ex2_lower_to_llvmir.sh` — full lowering chain with `--llvm-request-c-wrappers` → `build/phase4/matmul.ll`
+- `scripts/phase4/ex3_runtime_shim.c` — C runtime with MemRef2D struct, calls `_mlir_ciface_forward`
+- `scripts/phase4/ex4_compile_and_run.sh` — clang compile + run; outputs all 4.0
+- `scripts/verify_phase4.py` — AC4 verifier
+
+**Key implementation detail:** torch-mlir's `export_and_import` names the entry point `@main`, which conflicts with C's `main()`. Fix: rename `@main` → `@forward` in the MLIR text before lowering. The `--llvm-request-c-wrappers` pass (placed before `--convert-func-to-llvm`) generates `_mlir_ciface_forward` with MemRef2D* calling convention.
 
 **Pipeline to assemble:**
 ```
