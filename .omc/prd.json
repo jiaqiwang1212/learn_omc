@@ -1,0 +1,71 @@
+{
+  "title": "Phase 1: MLIR IR Literacy — Learning Exercises",
+  "description": "Implement the 5 Phase 1 exercises from the MLIR curriculum plus a milestone verification script. All scripts use the torch_mlir.fx.export_and_import API (not the removed torch_mlir.compile).",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Exercise 1: Export matmul IR at TORCH output type",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/phase1/ex1_export_torch.py exists",
+        "uv run python scripts/phase1/ex1_export_torch.py exits 0",
+        "Output contains 'torch.aten.mm' or 'torch.aten.matmul'",
+        "build/phase1/matmul_torch.mlir is created on run"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Exercise 2: SSA annotation helper",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/phase1/ex2_annotate_ssa.py exists",
+        "uv run python scripts/phase1/ex2_annotate_ssa.py exits 0",
+        "Output labels SSA values with their producer op names",
+        "Output prints the function argument and return types"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Exercise 3: SSA def-use chain tracer",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/phase1/ex3_def_use_chain.py exists",
+        "uv run python scripts/phase1/ex3_def_use_chain.py exits 0",
+        "Output shows DEFINES and USES for the matmul result value",
+        "Output includes an insertion-point explanation"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Exercise 4: Compare TORCH vs LINALG_ON_TENSORS output types",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/phase1/ex4_compare_output_types.py exists",
+        "uv run python scripts/phase1/ex4_compare_output_types.py exits 0",
+        "build/phase1/matmul_linalg.mlir is created on run",
+        "Output shows torch.aten.mm removed, linalg.matmul added"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Exercise 5: Relu at LINALG_ON_TENSORS — reading linalg.generic",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/phase1/ex5_relu_linalg_generic.py exists",
+        "uv run python scripts/phase1/ex5_relu_linalg_generic.py exits 0",
+        "build/phase1/relu_linalg.mlir is created on run",
+        "Output contains linalg.generic annotation and iterator_types explanation"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Milestone check: verify_phase1.py (AC1)",
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/verify_phase1.py exists",
+        "uv run python scripts/verify_phase1.py exits 0",
+        "16/16 checks PASS — all scripts, IR files, and dialect content verified"
+      ]
+    }
+  ]
+}

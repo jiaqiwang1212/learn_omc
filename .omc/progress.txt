@@ -1,0 +1,34 @@
+## Phase 1: MLIR IR Literacy — Progress Log
+
+### Session: 2026-04-01
+
+**Task:** Implement all Phase 1 learning exercises from .omc/plans/mlir-learning-curriculum.md
+
+**Completed:**
+- scripts/phase1/ex1_export_torch.py — exports matmul at TORCH dialect, saves matmul_torch.mlir
+- scripts/phase1/ex2_annotate_ssa.py — text-based SSA annotation (parses saved .mlir file)
+- scripts/phase1/ex3_def_use_chain.py — live IR walk via torch_mlir Python bindings; shows defines/uses for matmul result
+- scripts/phase1/ex4_compare_output_types.py — side-by-side TORCH vs LINALG_ON_TENSORS diff; saves matmul_linalg.mlir
+- scripts/phase1/ex5_relu_linalg_generic.py — exports relu at LINALG_ON_TENSORS; annotates linalg.generic iterator_types
+- scripts/verify_phase1.py — AC1 milestone verifier; 16/16 checks pass
+
+**Key learnings / gotchas discovered:**
+
+1. **torch_mlir.compile is removed** — the current API is `torch_mlir.fx.export_and_import`.
+   The plan's exercise code used the old API. All scripts use the new one.
+
+2. **export_and_import takes *args, not a tuple** — correct call:
+     `tmfx.export_and_import(Matmul(), torch.ones(4,4), torch.ones(4,4), output_type=...)`
+   NOT: `tmfx.export_and_import(Matmul(), (torch.ones(4,4), torch.ones(4,4)), ...)`
+
+3. **export_and_import creates its own Context internally** — do NOT wrap in `with tmir.Context():`
+   The function calls `ir.Context()` internally; wrapping causes double-context issues.
+
+4. **linalg.generic indexing maps may be aliased** — in the emitted IR, maps appear as `#map`
+   references defined at the top of the module, not inline in the op. Text parsing must handle
+   both inline and aliased forms.
+
+5. **torch.aten.matmul lowers to torch.aten.mm** — for static 2D tensors torch-mlir emits
+   `torch.aten.mm` (not `torch.aten.matmul`) in TORCH dialect output.
+
+**Verification:** `uv run python scripts/verify_phase1.py` — all 16 checks PASS.
