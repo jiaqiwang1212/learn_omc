@@ -9,6 +9,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 MLIR_OPT = REPO_ROOT / "build" / "bin" / "mlir-opt"
+MLIR_TRANSLATE = REPO_ROOT / "build" / "bin" / "mlir-translate"
+LLVM_AS = REPO_ROOT / "build" / "bin" / "llvm-as"
 
 PASS = "\033[32mPASS\033[0m"
 FAIL = "\033[31mFAIL\033[0m"
@@ -96,6 +98,15 @@ try:
 except Exception as e:
     check("export_and_import succeeds", False, str(e)[:300])
     check("output contains torch.aten.relu", False, "skipped")
+
+# ── Check 5: Additional LLVM tools (on-demand, same build) ───────────────────
+print("\nCheck 5: Additional LLVM tools (build/bin/)")
+for tool, target in [(MLIR_TRANSLATE, "mlir-translate"), (LLVM_AS, "llvm-as")]:
+    if tool.exists():
+        check(f"{tool.name} built", True)
+    else:
+        print(f"  [INFO] {tool.name} not yet built — run when needed:")
+        print(f"         cmake --build build --target {target}")
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 print()

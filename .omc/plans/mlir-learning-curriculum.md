@@ -82,7 +82,7 @@ PyTorch function → torch-mlir → MLIR dialects (torch → linalg → affine/v
 
 - [ ] **AC1** — Given *unseen* torch-mlir output, can identify all ops, their dialect namespaces, SSA values, and function signature types within 5 minutes, without documentation
 - [x] **AC2** — Can write a simple MLIR C++ pass that matches and replaces at least one op in the `torch` or `linalg` dialect, and the pass runs successfully via `mlir-opt --load-pass-plugin`
-- [ ] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
+- [x] **AC3** — Can lower a small PyTorch function (matmul or elementwise op) through MLIR dialects to valid LLVM IR; verified by `llvm-as matmul.ll` succeeding without errors
 - [ ] **AC4** — Can compile and run the resulting LLVM IR on CPU; output matches `torch.matmul(a, b).numpy()` to within 1e-5 tolerance
 - [ ] **AC5** — Given a *novel op not covered in the curriculum* (e.g., `torch.aten.relu`), can predict the lowering path and write a correct `mlir-opt` pass sequence for it, without documentation
 
@@ -126,6 +126,15 @@ learn_omc/                        ← git repo root
 **Why source build (not pip install):**
 - `mlir-opt` and the Python bindings must be built from the same LLVM revision — torch-mlir's bundled `externals/llvm-project` submodule pins the exact compatible commit
 - Avoids version mismatch between `mlir-opt` and `torch_mlir` Python module (a common failure mode with prebuilts)
+
+**Additional LLVM tools (build on demand, no extra dependencies):**
+
+All LLVM tools (`llvm-as`, `llc`, `lli`, etc.) are built from the same bundled `externals/llvm-project` — do **not** install them via `brew install llvm`. Use CMake targets instead:
+```bash
+cmake --build build --target llvm-as      # needed for AC3 (validates .ll files)
+cmake --build build --target llc          # needed for Phase 4 (compile .ll to native)
+```
+Output lands in `build/bin/` alongside `mlir-opt`.
 
 **Verification (after build):**
 ```bash
@@ -263,10 +272,20 @@ target_link_libraries(MyPass MLIRIR MLIRPass MLIRTransforms MLIRLinalgDialect)
 
 ---
 
-### Phase 3: The Lowering Chain — Dialects End-to-End
-**Duration:** 5–7 days
+### Phase 3: The Lowering Chain — Dialects End-to-End ✅ COMPLETED
+**Duration:** 5–7 days (completed 2026-04-01)
 **Goal:** Understand and manually execute each step of the lowering chain
-**Unlocks:** AC3, AC5 (partial)
+**Unlocks:** AC3 ✅, AC5 (partial)
+
+**Status:** All exercises and verifier implemented and committed.
+- `scripts/phase3/ex1_step_by_step.py` — applies each pass individually, saves 6 intermediate `.mlir` files to `build/phase3/`
+- `scripts/phase3/ex2_bufferization_dive.py` — isolates bufferization step, highlights every `memref.alloc` with context
+- `scripts/phase3/ex3_full_chain.sh` — full pipeline: linalg-on-tensors → LLVM IR (`build/phase3/matmul.ll`)
+- `scripts/phase3/ex4_break_pipeline.sh` — Phase 3.5 diagnostic exercises (4 broken variants)
+- `scripts/verify_phase3.py` — AC3 verifier: runs chain, validates `.ll` with `build/bin/llvm-as`
+- AC3 verified: `llvm-as matmul.ll` exits 0; `matmul.ll` contains `define` and memory ops
+
+**Key implementation detail:** `llvm-as` is built from the bundled `externals/llvm-project` — do NOT use `brew install llvm`. Build on demand: `cmake --build build --target llvm-as`
 
 **The full chain to understand:**
 ```
@@ -533,6 +552,7 @@ TableGen is a DSL embedded in the LLVM/MLIR build system for declaring ops, pass
 - v1.0 (2026-04-01): Initial draft from deep-interview spec. Planner pass.
 - v1.2 (2026-04-01): Phase 0 rewritten to reflect actual source-build arrangement: git submodule for torch-mlir, uv Python env, `scripts/build.sh`, workspace layout documented.
 - v1.3 (2026-04-01): Phase 2 marked complete. AC2 verified. Implementation details recorded.
+- v1.4 (2026-04-01): Phase 3 marked complete. AC3 verified. Exercise scripts + verifier committed. llvm-as build note added to Phase 0.
 - v1.1 (2026-04-01): Incorporated Architect + Critic feedback. 7 required changes applied:
   1. AC1 and AC5 rewritten to be objectively testable (no more "without confusion")
   2. SSA def-use chain tracing exercise added to Phase 1
