@@ -3,41 +3,50 @@
 # learn_omc
 
 ## Purpose
-A learning workspace for exploring and configuring oh-my-claudecode (OMC), the multi-agent orchestration layer for Claude Code. This project exists to experiment with OMC setup, skills, agents, and MCP server integrations.
+A hands-on MLIR learning curriculum that builds a complete end-to-end tensor lowering pipeline:
+`PyTorch → torch-mlir → MLIR dialects (torch → linalg → affine → llvm) → LLVM IR → CPU executable`.
+All 5 acceptance criteria are verified. Exercises are organized into 5 phases, from IR literacy through writing C++ pass plugins and defining a custom MLIR dialect.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `.claude/CLAUDE.md` | OMC configuration injected into every Claude Code session |
-| `.claude/settings.json` | Project-level plugin and enablement settings |
-| `.claude/settings.local.json` | Local permission overrides for setup automation |
+| `README.md` | Full curriculum overview, setup instructions, and verification commands |
+| `pyproject.toml` | Python dependencies (managed with `uv`) |
+| `main.py` | Entry point / scratch file |
+| `scripts/build.sh` | CMake configure + ninja build for MLIR/torch-mlir tools |
+| `scripts/build_passes.sh` | Builds C++ pass plugin `.dylib` files |
+| `scripts/verify_phase*.py` | Per-phase acceptance criteria verifiers (exit 0 = pass) |
 
 ## Subdirectories
 | Directory | Purpose |
 |-----------|---------|
-| `.claude/` | Claude Code configuration — skills, settings, and OMC CLAUDE.md (see `.claude/AGENTS.md`) |
+| `passes/` | C++ MLIR pass plugin source code organized by phase (see `passes/AGENTS.md`) |
+| `scripts/` | Python/shell learning exercises and build scripts organized by phase (see `scripts/AGENTS.md`) |
+| `third_party/` | `torch-mlir` git submodule (includes `llvm-project` and `stablehlo`) |
 
 ## For AI Agents
 
 ### Working In This Directory
-- This is a configuration-only workspace with no application source code
-- The primary artifact is `.claude/CLAUDE.md`, which is managed by the OMC plugin and should not be manually edited between OMC versions
-- Use `/oh-my-claudecode:omc-setup` to refresh or reconfigure OMC
+- **Never touch** `/Users/jacob/workspace/llvm-project` — it is unrelated; the correct llvm lives at `third_party/torch-mlir/externals/llvm-project`
+- Built tools live in `build/bin/` (`mlir-opt`, `mlir-translate`, `torch-mlir-opt`, `llvm-as`, `llc`, `lli`)
+- Pass plugin dylibs are built to `build/passes/phase2/` and `build/passes/phase5/`
+- Always use `uv run` for Python scripts (e.g. `uv run python scripts/verify_phase1.py`)
 
 ### Testing Requirements
-- Verify OMC is working by running `claude mcp list` and confirming connected servers
-- Check `~/.claude/.omc-config.json` for persisted preferences
+- Run the relevant phase verifier: `uv run python scripts/verify_phaseN.py`
+- Exit code 0 means all checks pass for that phase
+- Full suite: run all `verify_phase*.py` scripts sequentially
 
 ### Common Patterns
-- All OMC configuration lives under `.claude/`
-- MCP server configs are stored in `~/.claude.json` (project scope) or `~/.claude/claude.json` (global)
-- Skills are loaded from `.claude/skills/`
+- Phase exercises are numbered `ex1_`, `ex2_`, … within each `scripts/phaseN/` directory
+- C++ passes follow the MLIR pass plugin registration pattern (`PassPlugin::get()` + `PassRegistration`)
+- Shell scripts (`.sh`) drive `mlir-opt` pipeline invocations; Python scripts analyze or verify IR
 
 ## Dependencies
 
 ### External
-- `oh-my-claudecode` (plugin) — OMC orchestration layer
-- `context7` MCP — library documentation
-- `filesystem` MCP — extended file access at `~/`
+- `torch-mlir` submodule — provides `torch` dialect and lowering infrastructure
+- `uv` — Python package and project manager
+- `cmake` + `ninja` + `clang/clang++` — C++ build toolchain
 
 <!-- MANUAL: -->

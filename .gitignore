@@ -5,3 +5,5 @@ __pycache__/
 *.pyo
 .DS_Store
 .cache/
+.omc/state/
+.omc/sessions/
